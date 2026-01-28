@@ -1,0 +1,39 @@
+services:
+  temp-reporter:
+    # Use the image built by your GitHub Action or build locally
+    image: ghcr.io/${GITHUB_USERNAME}/${REPO_NAME}:latest
+    container_name: temperature-reporter
+    restart: unless-stopped
+    
+    # This instructs Docker to load the key-value pairs from your .env file
+    env_file:
+      - .env
+
+    # Explicitly mapping the internal state to your host for persistence
+    volumes:
+      - ./data:/data
+    
+    # Exposing the health check port
+    ports:
+      - "8080:8080"
+    
+    # Internal Healthcheck
+    # This uses the 'curl' we will include in the Dockerfile
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Standard logging to prevent the disk from filling up
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Define the volume if you prefer a managed volume over a bind mount
+# (Optional: stick to ./data for simplicity if you want easy backups)
+# volumes:
+#   reporter_data:

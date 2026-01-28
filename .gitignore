@@ -1,0 +1,83 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Testing ---
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# --- Docker ---
+# We generally want to ignore logs, but keep the Dockerfile/compose
+.docker/
+*.log
+
+# --- VS Code ---
+.vscode/
+# Note: You might want to track launch.json, but never settings.json 
+# or files containing personal paths/extensions.
+.vscode/settings.json
+.history/
+
+# --- Environment & Secrets ---
+# VERY IMPORTANT: Never commit your actual HA tokens or API keys
+.env
+.env.local
+.env.*.local
+*.secret
+secrets.yaml
+
+# BUT do not ignore the example template
+!.env.example
+
+# --- System ---
+.DS_Store
+Thumbs.db
+
+# --- Other ---
+.env
+
+# --- Application Data ---
+# Persisted state should not be in version control
+data/
+*.json
+
+# --- OS & IDE ---
+.DS_Store
+.vscode/
+.history/
+Thumbs.db
