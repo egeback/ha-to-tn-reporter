@@ -32,12 +32,27 @@ COPY README.md /app/
 # Create a directory for persistent state data
 RUN mkdir -p /app/data
 
+# Build-time argument for versioning
+ARG APP_VERSION=unknown
+
 # Environment variables with defaults
-ENV REPORTER_HA_URL="" \
+ENV PYTHONPATH="/app/src" \
+    # --- App Infrastructure ---
+    APP_VERSION=$APP_VERSION \
+    LOG_LEVEL="INFO" \
+    HEALTH_PORT="8080" \
+    # --- Home Assistant ---
+    REPORTER_HA_URL="" \
     REPORTER_HA_TOKEN="" \
+    # --- Temperatur.nu ---
     REPORTER_TN_HASH="" \
     REPORTER_SENSOR_MAPPING="" \
-    PYTHONPATH="/app/src"
+    # --- MQTT Broker ---
+    REPORTER_MQTT_HOST="localhost" \
+    REPORTER_MQTT_PORT="1883" \
+    REPORTER_MQTT_USER="" \
+    REPORTER_MQTT_PASSWORD="" \
+    REPORTER_MQTT_TOPIC="tn_reporter"
 
 # Expose the health check port
 EXPOSE 8080

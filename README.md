@@ -51,13 +51,15 @@ REPORTER_HA_TOKEN=your_token
 
 # TN Config
 REPORTER_TN_HASH=your_hash
-# Format: sensor_id:station_id. Use pipes for groups: s1|s2:station1
-REPORTER_SENSOR_MAPPING=sensor.outside:station1,sensor.balcony|sensor.deck:station2
+# Format: station_id=ha_sensor_id
+# - Use a pipe (|) to group multiple HA sensors for one station.
+# - Use a comma (,) to configure multiple stations.
+REPORTER_SENSOR_MAPPING=sandbyang=sensor.outside_1|sensor.outside_2,garage=sensor.garage_temp
 
 # MQTT Config
 REPORTER_MQTT_HOST=192.168.1.XX
 REPORTER_MQTT_USER=user
-REPORTER_MQTT_PASS=pass
+REPORTER_MQTT_PASSWORD=pass
 
 ```
 

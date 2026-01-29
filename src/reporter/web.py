@@ -55,7 +55,8 @@ async def start_health_server(mqtt_manager, port=8080):
             "counters": {
                 "session_success": health_status["session_success_count"],
                 "lifetime_success": health_status["lifetime_success_count"],
-                "errors": health_status["error_count"]
+                "session_errors": health_status["error_count"],
+                "lifetime_errors": health_status["lifetime_error_count"]
             },
             "last_ha_fetch": health_status["last_ha_fetch"]
         }
