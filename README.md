@@ -62,7 +62,7 @@ REPORTER_TN_HASH=your_tn_hash
 REPORTER_SENSOR_MAPPING=sandbyang=sensor.outside_1|sensor.outside_2,garage=sensor.garage_temp
 
 # App Settings (Optional)
-LOG_LEVEL=INFO
+LOG_LEVEL=WARNING
 HEALTH_PORT=8080
 REPORTER_INTERVAL=180
 

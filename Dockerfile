@@ -51,7 +51,7 @@ ARG APP_VERSION=unknown
 ENV PYTHONPATH="/app/src" \
     # --- App Infrastructure ---
     APP_VERSION=$APP_VERSION \
-    LOG_LEVEL="INFO" \
+    LOG_LEVEL="WARNING" \
     HEALTH_PORT="8080" \
     REPORTER_INTERVAL="180" \
     # --- Home Assistant ---

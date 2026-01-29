@@ -42,6 +42,7 @@ class TempSensor:
         valid_values = []
         stale_count = 0
         sensor_map = {}
+        last_updated_map = {}
         headers = {"Authorization": f"Bearer {self.ha_token}"}
 
         # Create concurrent tasks for all sensors in the group
@@ -87,6 +88,7 @@ class TempSensor:
                 val = float(state)
                 valid_values.append(val)
                 sensor_map[eid] = val
+                last_updated_map[eid] = ts_str
     
             except Exception as e:
                 logger.error(f"Failed to fetch data for {eid}: {e}")
@@ -105,6 +107,7 @@ class TempSensor:
         result = self._calculate_aggregation(valid_values)
         
         winning_sensor = "N/A"
+        winning_last_updated = None
         if result is not None:
             if self.mode == "min":
                 # Find the first sensor that matches the result (which is the min value)
@@ -120,7 +123,18 @@ class TempSensor:
                         if val == result:
                             winning_sensor = eid
                             break
+            
+            # Determine last_updated for the result
+            if winning_sensor != "N/A":
+                winning_last_updated = last_updated_map.get(winning_sensor)
+            else:
+                # If no single winner (e.g. mean or interpolated median), use the most recent timestamp
+                valid_timestamps = [last_updated_map[eid] for eid in sensor_map]
+                if valid_timestamps:
+                    winning_last_updated = max(valid_timestamps)
+
         stats["winning_sensor"] = winning_sensor
+        stats["last_updated"] = winning_last_updated
 
         if result is None:
             stats["error"] = "No valid data (all sensors were stale or unavailable)"

@@ -1,54 +1,13 @@
-import os
 import asyncio
 import logging
 import time
 from datetime import datetime, timezone
-import argparse
 import httpx
 import sys
 from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
-
-def parse_args(args_list=None):
-    """
-    Defines the CLI and Environment Variable schema.
-    Priority: CLI Argument > Environment Variable > Default.
-    """
-    parser = argparse.ArgumentParser(description="HA to Temperatur.nu Reporter")
-    
-    # Home Assistant Source Settings
-    parser.add_argument("--ha-url", default=os.getenv("REPORTER_HA_URL"), 
-                        help="HA API URL (e.g. http://192.168.1.10:8123)")
-    parser.add_argument("--ha-token", default=os.getenv("REPORTER_HA_TOKEN"), 
-                        help="HA Long-Lived Access Token")
-    
-    # Temperatur.nu Destination Settings
-    parser.add_argument("--tn-hash", default=os.getenv("REPORTER_TN_HASH"), 
-                        help="Reporting hash from temperatur.nu")
-    parser.add_argument("--mapping", default=os.getenv("REPORTER_SENSOR_MAPPING"), 
-                        help="Mapping: tn_id=ha_id|ha_id")
-    
-    # App Infrastructure Settings
-    parser.add_argument("--log-level", default=os.getenv("LOG_LEVEL", "INFO"))
-    parser.add_argument("--port", type=int, default=int(os.getenv("HEALTH_PORT", 8080)))
-    parser.add_argument("--interval", type=int, default=int(os.getenv("REPORTER_INTERVAL", 180)),
-                        help="Reporting interval in seconds (default: 180)")
-
-    # MQTT Settings
-    parser.add_argument("--mqtt-host", default=os.getenv("REPORTER_MQTT_HOST"),
-                        help="MQTT broker hostname")
-    parser.add_argument("--mqtt-port", type=int, default=int(os.getenv("REPORTER_MQTT_PORT", 1883)),
-                        help="MQTT broker port")
-    parser.add_argument("--mqtt-user", default=os.getenv("REPORTER_MQTT_USER"),
-                        help="MQTT username")
-    parser.add_argument("--mqtt-password", default=os.getenv("REPORTER_MQTT_PASSWORD"),
-                        help="MQTT password")
-    parser.add_argument("--mqtt-topic", default=os.getenv("REPORTER_MQTT_TOPIC", "tn_reporter"),
-                        help="MQTT base topic (default: tn_reporter)")
-    
-    return parser.parse_args(args_list)
 
 # Define global logger
 logger = logging.getLogger("reporter.main")
@@ -57,7 +16,7 @@ logger = logging.getLogger("reporter.main")
 from reporter.state import health_status, update_success, update_error
 from reporter.web import start_health_server
 from reporter.mqtt import MQTTManager
-from reporter.config import parse_sensors
+from reporter.config import parse_sensors, parse_args
 from reporter.tn_client import report_to_tn
 
 async def main_loop():

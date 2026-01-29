@@ -63,6 +63,15 @@ async def start_health_server(mqtt_manager, port=8080):
             "last_ha_fetch": health_status["last_ha_fetch"]
         }
 
+        # Add station details if available (includes last_updated)
+        stations = {}
+        for key, value in health_status.items():
+            if isinstance(value, dict) and "raw_values" in value:
+                stations[key] = value
+        
+        if stations:
+            response_data["stations"] = stations
+
         # Return 200 if healthy, 503 if there is an issue (e.g., MQTT disconnected)
         return web.json_response(
             data=response_data, 

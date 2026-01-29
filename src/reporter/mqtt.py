@@ -127,6 +127,20 @@ class MQTTManager:
             pub_tuple = (winning_sensor_topic, json.dumps(winning_sensor_payload), 1, True)
             self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
 
+            # Create a sensor for the last updated timestamp
+            last_updated_topic = f"homeassistant/sensor/{DISCOVERY_ROOT}/{station_id}_last_updated/config"
+            last_updated_payload = {
+                "name": f"{station_id.replace('_', ' ').title()} Last Updated",
+                "state_topic": self.state_topic,
+                "value_template": f"{{{{ value_json.station['{station_id}'].last_updated | default(None) }}}}",
+                "unique_id": f"{self.base_topic}_{station_id}_last_updated",
+                "device": device,
+                "entity_category": "diagnostic",
+                "device_class": "timestamp",
+                **availability_config
+            }
+            pub_tuple = (last_updated_topic, json.dumps(last_updated_payload), 1, True)
+            self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
 
 
 
@@ -201,6 +215,7 @@ class MQTTManager:
             payload_stations[station_id] = {
                 "sensor_name": sensor_data.get("winning_sensor", "N/A"),
                 "temperature": sensor_data.get("last_reported_value"),
+                "last_updated": sensor_data.get("last_updated"),
                 "raw_values": sensor_data.get("sensor_map", {}),
                 "evaluated_count": sensor_data.get("total_sensors", 0),
                 "disqualified_count": sensor_data.get("stale_sensors", 0)
