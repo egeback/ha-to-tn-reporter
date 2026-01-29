@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM python:3.11-slim as builder
+FROM python:3.12-slim as builder
 
 # Avoid generating .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -18,7 +18,7 @@ RUN pip install --upgrade pip && \
     pip install --prefix=/install .
 
 # Stage 2: Final runtime stage
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -56,6 +56,10 @@ ENV PYTHONPATH="/app/src" \
 
 # Expose the health check port
 EXPOSE 8080
+
+# Healthcheck configuration
+# HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+#  CMD curl -f http://localhost:${HEALTH_PORT}/health || exit 1
 
 # The command to run the application
 # We use the module path to ensure imports work correctly
