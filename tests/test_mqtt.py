@@ -24,9 +24,9 @@ async def test_mqtt_discovery_payloads():
     # 1. Temperature sensor config
     # 2. Winning sensor config
     # 3. Main Status config
-    # 4. 7 Diagnostic stats sensors
-    # Total = 10 messages
-    assert mgr.queue.qsize() == 10
+    # 4. 10 Diagnostic stats sensors
+    # Total = 13 messages
+    assert mgr.queue.qsize() == 13
     
     # Helper to find a specific config by unique_id suffix
     items = []

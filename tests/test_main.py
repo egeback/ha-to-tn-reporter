@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from reporter.main import parse_sensors, main_loop
 from reporter.model.sensor import TempSensor
 
@@ -52,6 +52,9 @@ async def test_mqtt_topic_arg_passed_to_manager():
          patch("reporter.main.start_health_server", side_effect=RuntimeError("Break Loop")), \
          patch("reporter.main.parse_sensors", return_value=[]):
         
+        # Fix: Ensure run() is an awaitable for asyncio.create_task
+        MockMQTT.return_value.run = AsyncMock()
+
         try:
             await main_loop()
         except RuntimeError as e:
