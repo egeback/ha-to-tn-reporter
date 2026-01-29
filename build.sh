@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-IMAGE_NAME="ghcr.io/your-username/ha-tn-reporter"
+IMAGE_NAME="egeback/ha-tn-reporter"
 # Read version from the Python package to ensure a single source of truth
 VERSION=$(grep -oP "__version__ = '\K[^']+" src/reporter/__init__.py)
 LATEST_TAG="latest"

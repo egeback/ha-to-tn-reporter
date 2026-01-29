@@ -32,15 +32,17 @@ async def start_health_server(mqtt_manager, port=8080):
         logger.debug("Health check requested via Web API.")
 
         # Sync the real-time connection status from the MQTT manager into our state object
-        health_status["mqtt_connected"] = mqtt_manager.is_connected()
+        if mqtt_manager:
+            health_status["mqtt_connected"] = mqtt_manager.is_connected()
 
         # Define health criteria:
         # 1. Must not be in the 'starting' phase.
         # 2. MQTT must be actively connected (optional, but recommended for full integration).
-        is_healthy = (
-            health_status["status"] != "starting" and 
-            health_status["mqtt_connected"] is True
-        )
+        is_healthy = (health_status["status"] != "starting")
+        
+        # Only check MQTT status if MQTT is actually enabled
+        if mqtt_manager:
+            is_healthy = is_healthy and (health_status["mqtt_connected"] is True)
 
         # Calculate uptime for the response
         uptime_seconds = int(time.time() - health_status["session_start_time"])

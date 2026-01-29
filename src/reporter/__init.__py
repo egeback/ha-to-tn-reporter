@@ -1,3 +1,0 @@
-from reporter.state import health_status
-
-__version__ = health_status["version"]

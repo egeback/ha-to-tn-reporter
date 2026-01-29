@@ -22,6 +22,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install runtime dependencies (curl is required for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy only the installed packages from the builder
 COPY --from=builder /install /usr/local
 
@@ -41,6 +46,7 @@ ENV PYTHONPATH="/app/src" \
     APP_VERSION=$APP_VERSION \
     LOG_LEVEL="INFO" \
     HEALTH_PORT="8080" \
+    REPORTER_INTERVAL="180" \
     # --- Home Assistant ---
     REPORTER_HA_URL="" \
     REPORTER_HA_TOKEN="" \
@@ -58,8 +64,8 @@ ENV PYTHONPATH="/app/src" \
 EXPOSE 8080
 
 # Healthcheck configuration
-# HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-#  CMD curl -f http://localhost:${HEALTH_PORT}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+  CMD curl -f http://localhost:${HEALTH_PORT}/health || exit 1
 
 # The command to run the application
 # We use the module path to ensure imports work correctly

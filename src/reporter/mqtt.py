@@ -156,6 +156,9 @@ class MQTTManager:
             {"id": "uptime", "name": "Uptime", "key": "uptime_seconds", "cls": "duration", "unit": "s", "icon": "mdi:clock-outline", "sc": None},
             {"id": "session_start", "name": "Session Start", "key": "session_start_time_iso", "cls": "timestamp", "unit": None, "icon": None, "sc": None},
             {"id": "last_report", "name": "Last Successful Report", "key": "last_successful_report", "cls": "timestamp", "unit": None, "icon": None, "sc": None},
+            {"id": "last_run", "name": "Last Run", "key": "last_run", "cls": "timestamp", "unit": None, "icon": "mdi:clock-end", "sc": None},
+            {"id": "active_sensors", "name": "Active Sensors", "key": "active_sensors", "cls": None, "unit": None, "icon": "mdi:sensor", "sc": None},
+            {"id": "invalid_sensors", "name": "Invalid Sensors", "key": "invalid_sensors", "cls": None, "unit": None, "icon": "mdi:sensor-off", "sc": None},
             {"id": "session_success", "name": "Session Success", "key": "session_success", "cls": None, "unit": None, "icon": "mdi:check-circle-outline", "sc": "total_increasing"},
             {"id": "lifetime_success", "name": "Lifetime Success", "key": "lifetime_success", "cls": None, "unit": None, "icon": "mdi:check-circle", "sc": "total_increasing"},
             {"id": "session_errors", "name": "Session Errors", "key": "session_errors", "cls": None, "unit": None, "icon": "mdi:alert-circle-outline", "sc": "total_increasing"},
@@ -185,6 +188,29 @@ class MQTTManager:
             pub_tuple = (topic, json.dumps(payload), 1, True)
             self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
 
+    def _build_mqtt_payload(self, data_source: dict) -> dict:
+        """
+        Transforms the internal state dictionary into the public MQTT JSON schema.
+        """
+        payload_stats = data_source.get("stats", {})
+        stations_data = data_source.get("stations", {})
+
+        # Reformat the station data for the final MQTT payload
+        payload_stations = {}
+        for station_id, sensor_data in stations_data.items():
+            payload_stations[station_id] = {
+                "sensor_name": sensor_data.get("winning_sensor", "N/A"),
+                "temperature": sensor_data.get("last_reported_value"),
+                "raw_values": sensor_data.get("sensor_map", {}),
+                "evaluated_count": sensor_data.get("total_sensors", 0),
+                "disqualified_count": sensor_data.get("stale_sensors", 0)
+            }
+
+        return {
+            "stats": payload_stats,
+            "station": payload_stations
+        }
+
     async def _consume_queue(self, client):
         """
         The 'Consumer' loop. Watches the queue and publishes items to the broker.
@@ -204,29 +230,9 @@ class MQTTManager:
                 # TYPE 2: A state update dictionary
                 elif isinstance(item, dict):
                     # This 'item' is now a pre-structured dictionary from main.py
-                    # with 'stats' and 'stations' keys.
-                    data_source = item
+                    # We transform it into the final schema before publishing.
+                    payload = self._build_mqtt_payload(item)
                     
-                    payload_stats = data_source.get("stats", {})
-                    stations_data = data_source.get("stations", {})
-
-                    # Reformat the station data for the final MQTT payload
-                    payload_stations = {}
-                    for station_id, sensor_data in stations_data.items():
-                        payload_stations[station_id] = {
-                            "sensor_name": sensor_data.get("winning_sensor", "N/A"),
-                            "temperature": sensor_data.get("last_reported_value"),
-                            "raw_values": sensor_data.get("sensor_map", {}),
-                            "evaluated_count": sensor_data.get("total_sensors", 0),
-                            "disqualified_count": sensor_data.get("stale_sensors", 0)
-                        }
-
-                    # Combine into the final payload
-                    payload = {
-                        "stats": payload_stats,
-                        "station": payload_stations
-                    }
-
                     # Publish to the single unified topic
                     await client.publish(self.state_topic, json.dumps(payload), qos=1)
                     logger.info(f"MQTT: State published successfully. (Queue depth: {self.queue.qsize()})")

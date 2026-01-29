@@ -2,7 +2,7 @@ import pytest
 import respx
 import httpx
 from httpx import Response
-from reporter.main import report_to_tn
+from reporter.tn_client import report_to_tn
 from reporter.model.sensor import TempSensor
 from reporter.state import health_status
 

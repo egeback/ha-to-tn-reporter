@@ -138,3 +138,87 @@ async def test_all_sensors_stale():
     assert result is None
     assert stats["active_sensors"] == 0
     assert stats["stale_sensors"] == 1
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_winning_sensor_min():
+    """Test that the correct sensor ID is identified as the 'winner' in min mode."""
+    ha_url = "http://ha.local"
+    # s2 will be the lowest (18.0)
+    sensor = TempSensor("s1|s2|s3", "tn_id", ha_url, "token", mode="min")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "20.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "18.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s3").mock(return_value=Response(200, json={"state": "22.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == 18.0
+    assert stats["winning_sensor"] == "s2"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_winning_sensor_median_odd():
+    """Test median mode with an odd number of values (exact match)."""
+    ha_url = "http://ha.local"
+    # Values: 10, 20, 30 -> Median is 20 (s2)
+    sensor = TempSensor("s1|s2|s3", "tn_id", ha_url, "token", mode="median")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "10.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "20.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s3").mock(return_value=Response(200, json={"state": "30.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == 20.0
+    assert stats["winning_sensor"] == "s2"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_winning_sensor_median_even():
+    """Test median mode with even number of values (interpolated)."""
+    ha_url = "http://ha.local"
+    # Values: 10, 20, 30, 40 -> Median is 25. No sensor has 25.
+    sensor = TempSensor("s1|s2|s3|s4", "tn_id", ha_url, "token", mode="median")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "10.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "20.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s3").mock(return_value=Response(200, json={"state": "30.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s4").mock(return_value=Response(200, json={"state": "40.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == 25.0
+    # Since 25.0 is an average of 20 and 30, no single sensor "won"
+    assert stats["winning_sensor"] == "N/A"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_api_error_resilience():
+    """Test that a 500 error from one sensor doesn't crash the group."""
+    ha_url = "http://ha.local"
+    sensor = TempSensor("s_good|s_bad", "tn_id", ha_url, "token", mode="min")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # s_good returns valid data
+    respx.get(f"{ha_url}/api/states/s_good").mock(return_value=Response(200, json={"state": "15.0", "last_updated": now}))
+    # s_bad returns Internal Server Error
+    respx.get(f"{ha_url}/api/states/s_bad").mock(return_value=Response(500))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    # Should ignore the error and use the valid data
+    assert result == 15.0
+    assert stats["active_sensors"] == 1
+    assert stats["total_sensors"] == 2

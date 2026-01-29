@@ -17,15 +17,6 @@ services:
     ports:
       - "8080:8080"
     
-    # Internal Healthcheck
-    # This uses the 'curl' we will include in the Dockerfile
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
     # Standard logging to prevent the disk from filling up
     logging:
       driver: "json-file"
