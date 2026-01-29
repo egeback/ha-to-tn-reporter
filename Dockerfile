@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN useradd -m -u 1000 appuser
+
 # Copy only the installed packages from the builder
 COPY --from=builder /install /usr/local
 
@@ -39,6 +42,8 @@ COPY README.md /app/
 
 # Create a directory for persistent state data
 RUN mkdir -p /app/data
+# Ensure appuser owns the application directory to allow writing state.json
+RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
 # Build-time argument for versioning
 ARG APP_VERSION=unknown
@@ -69,6 +74,9 @@ EXPOSE 8080
 # Healthcheck configuration
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
   CMD curl -f http://localhost:${HEALTH_PORT}/health || exit 1
+
+# Switch to non-root user for security
+USER appuser
 
 # The command to run the application
 # We use the module path to ensure imports work correctly
