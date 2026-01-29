@@ -41,7 +41,6 @@ COPY src/ /app/src/
 COPY README.md /app/
 
 # Create a directory for persistent state data
-RUN mkdir -p /app/data
 # Ensure appuser owns the application directory to allow writing state.json
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
 

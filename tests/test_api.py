@@ -15,7 +15,7 @@ async def test_report_to_tn_success():
     """
     # Fix: respx now uses direct string matching or regex
     # We match the base URL of the temperatur.nu API
-    respx.get("http://www.temperatur.nu/rapportera.php").mock(
+    respx.get("https://www.temperatur.nu/rapportera.php").mock(
         return_value=Response(200, text="ok (0.123s)")
     )
     
@@ -34,7 +34,7 @@ async def test_report_to_tn_api_error():
     """
     Tests that the reporter handles an explicit 'error' response from the TN API.
     """
-    respx.get("http://www.temperatur.nu/rapportera.php").mock(
+    respx.get("https://www.temperatur.nu/rapportera.php").mock(
         return_value=Response(200, text="error: invalid hash")
     )
     
@@ -51,7 +51,7 @@ async def test_report_to_tn_http_failure():
     """
     Tests that the reporter handles a 500 Server Error (Network/API down).
     """
-    respx.get("http://www.temperatur.nu/rapportera.php").mock(
+    respx.get("https://www.temperatur.nu/rapportera.php").mock(
         return_value=Response(500, text="Internal Server Error")
     )
     

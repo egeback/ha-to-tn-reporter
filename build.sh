@@ -3,7 +3,7 @@
 # Configuration
 IMAGE_NAME="ghcr.io/egeback/ha-tn-reporter"
 # Read version from the Python package to ensure a single source of truth
-VERSION=$(grep -oP "__version__ = '\K[^']+" src/reporter/__init__.py)
+VERSION=$(sed -n "s/^__version__ = '\([^']*\)'/\1/p" src/reporter/__init__.py)
 LATEST_TAG="latest"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 

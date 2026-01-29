@@ -9,7 +9,7 @@ async def report_to_tn(client: httpx.AsyncClient, sensor: TempSensor, value: flo
     Submits reading to TN API with robust error handling and debug logging.
     """
     params = {"id": sensor.tn_id, "t": f"{value:.1f}", "hash": tn_hash}
-    url = "http://www.temperatur.nu/rapportera.php"
+    url = "https://www.temperatur.nu/rapportera.php"
     
     logger.debug(f"Attempting TN report for station '{sensor.tn_id}' with value {value:.1f}°C")
     
