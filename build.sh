@@ -13,10 +13,14 @@ if [ -z "$VERSION" ]; then
 fi
 
 # Run tests before building
-echo "Running tests..."
-if ! pytest; then
-    echo "Tests failed! Aborting build."
-    exit 1
+if [ -z "$SKIP_TESTS" ]; then
+    echo "Running tests..."
+    if ! pytest; then
+        echo "Tests failed! Aborting build."
+        exit 1
+    fi
+else
+    echo "Skipping tests (SKIP_TESTS is set)..."
 fi
 
 # 1. Create and use a new builder instance that supports multi-arch

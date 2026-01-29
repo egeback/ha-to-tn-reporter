@@ -145,7 +145,11 @@ To build and push images for both **amd64** and **arm64** (e.g., Raspberry Pi) u
 chmod +x build.sh
 ./build.sh
 ```
-
+Skipping tests
+```bash
+chmod +x build.sh
+SKIP_TESTS=1 ./build.sh
+```
 ---
 
 ## 📜 License
