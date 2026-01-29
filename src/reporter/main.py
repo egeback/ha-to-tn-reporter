@@ -45,6 +45,8 @@ def parse_args(args_list=None):
                         help="MQTT username")
     parser.add_argument("--mqtt-password", default=os.getenv("REPORTER_MQTT_PASSWORD"),
                         help="MQTT password")
+    parser.add_argument("--mqtt-topic", default=os.getenv("REPORTER_MQTT_TOPIC", "tn_reporter"),
+                        help="MQTT base topic (default: tn_reporter)")
     
     return parser.parse_args(args_list)
 
@@ -92,7 +94,8 @@ async def main_loop():
             port=args.mqtt_port,
             sensors=sensors,
             username=args.mqtt_user,
-            password=args.mqtt_password
+            password=args.mqtt_password,
+            base_topic=args.mqtt_topic
         )
         
         # Start MQTT in the background and protect from Garbage Collection

@@ -1,7 +1,7 @@
 services:
   temp-reporter:
     # Use the image built by your GitHub Action or build locally
-    image: ghcr.io/${GITHUB_USERNAME}/${REPO_NAME}:latest
+    image: egeback/egeback/ha-tn-reporter:latest
     container_name: temperature-reporter
     restart: unless-stopped
     
