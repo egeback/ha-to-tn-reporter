@@ -45,6 +45,7 @@ coverage.xml
 # We generally want to ignore logs, but keep the Dockerfile/compose
 .docker/
 *.log
+compose.yaml
 
 # --- VS Code ---
 .vscode/

@@ -13,9 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies into a local directory
+COPY requirements.txt .
 COPY pyproject.toml .
 RUN pip install --upgrade pip && \
-    pip install --prefix=/install .
+    pip install --prefix=/install -r requirements.txt && \
+    pip install --prefix=/install --no-deps .
 
 # Stage 2: Final runtime stage
 FROM python:3.12-slim
