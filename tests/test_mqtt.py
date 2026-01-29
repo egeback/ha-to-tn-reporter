@@ -53,7 +53,12 @@ async def test_mqtt_discovery_payloads():
     assert payload["name"] == "Station 1 Winning Sensor"
     assert "value_json.station['station_1'].sensor_name" in payload["value_template"]
 
-    # 3. Check a Stat Sensor (e.g., Uptime)
+    # 3. Check Last Updated Sensor
+    topic, payload = get_payload("_station_1_last_updated")
+    assert payload["name"] == "Station 1 Last Updated"
+    assert "value_json.station['station_1'].last_updated" in payload["value_template"]
+
+    # 4. Check a Stat Sensor (e.g., Uptime)
     topic, payload = get_payload("_uptime")
     assert payload["name"] == "Station 1 Reporter Uptime" # derived from device_name logic
     assert payload["device_class"] == "duration"
@@ -78,6 +83,7 @@ async def test_mqtt_state_update_formatting():
             "station_1": {
                 "last_reported_value": 21.5,
                 "winning_sensor": "sensor.outside",
+                "last_updated": "2023-01-01T12:00:00+00:00",
                 "sensor_map": {"sensor.outside": 21.5},
                 "total_sensors": 1,
                 "stale_sensors": 0
@@ -107,6 +113,7 @@ async def test_mqtt_state_update_formatting():
     assert "station" in payload
     assert payload["station"]["station_1"]["temperature"] == 21.5
     assert payload["station"]["station_1"]["sensor_name"] == "sensor.outside"
+    assert payload["station"]["station_1"]["last_updated"] == "2023-01-01T12:00:00+00:00"
 
 def test_build_mqtt_payload_structure():
     """
@@ -122,6 +129,7 @@ def test_build_mqtt_payload_structure():
             "s1": {
                 "winning_sensor": "w1",
                 "last_reported_value": 10.0,
+                "last_updated": "2023-01-01T12:00:00+00:00",
                 "sensor_map": {"w1": 10.0},
                 "total_sensors": 1,
                 "stale_sensors": 0
@@ -136,5 +144,6 @@ def test_build_mqtt_payload_structure():
     assert "s1" in result["station"]
     assert result["station"]["s1"]["sensor_name"] == "w1"
     assert result["station"]["s1"]["temperature"] == 10.0
+    assert result["station"]["s1"]["last_updated"] == "2023-01-01T12:00:00+00:00"
     assert result["station"]["s1"]["evaluated_count"] == 1
     assert result["station"]["s1"]["disqualified_count"] == 0
