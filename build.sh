@@ -12,6 +12,13 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+# Run tests before building
+echo "Running tests..."
+if ! pytest; then
+    echo "Tests failed! Aborting build."
+    exit 1
+fi
+
 # 1. Create and use a new builder instance that supports multi-arch
 # This is required because the default builder usually only supports the host arch.
 docker buildx create --name multiarch-builder --use || docker buildx use multiarch-builder
