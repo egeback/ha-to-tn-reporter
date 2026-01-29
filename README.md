@@ -139,7 +139,7 @@ pytest --cov=reporter
 
 ## 📦 Multi-Arch Builds
 
-To build and push images for both **amd64** and **arm64** (e.g., Raspberry Pi) using Docker Buildx:
+To build images for both **amd64** and **arm64** (e.g., Raspberry Pi) using Docker Buildx:
 
 ```bash
 chmod +x build.sh
@@ -149,6 +149,12 @@ Skipping tests
 ```bash
 chmod +x build.sh
 SKIP_TESTS=1 ./build.sh
+```
+
+To push the image to the registry:
+
+```bash
+PUSH_IMAGE=1 ./build.sh
 ```
 ---
 

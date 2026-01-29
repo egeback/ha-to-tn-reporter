@@ -34,12 +34,19 @@ docker buildx inspect --bootstrap
 # --platform specifies the architectures
 # --push is required for multi-arch builds because the local Docker daemon 
 # cannot load multi-arch manifests directly.
-echo "Building and pushing $IMAGE_NAME for amd64 and arm64 with tags: $VERSION, $LATEST_TAG"
+
+OUTPUT_ARGS=""
+if [ -n "$PUSH_IMAGE" ]; then
+    OUTPUT_ARGS="--push"
+    echo "Building and pushing $IMAGE_NAME for amd64 and arm64 with tags: $VERSION, $LATEST_TAG"
+else
+    echo "Building (no push) $IMAGE_NAME for amd64 and arm64 with tags: $VERSION, $LATEST_TAG"
+fi
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t "$IMAGE_NAME:$VERSION" \
   -t "$IMAGE_NAME:$LATEST_TAG" \
-  --push .
+  $OUTPUT_ARGS .
 
 echo "Build complete!"
