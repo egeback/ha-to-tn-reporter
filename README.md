@@ -152,9 +152,13 @@ SKIP_TESTS=1 ./build.sh
 ```
 
 To push the image to the registry:
-
 ```bash
 PUSH_IMAGE=1 ./build.sh
+```
+
+Configure what platforms to build for:
+```bash
+PLATFORMS="linux/amd64" ./build.s
 ```
 ---
 

@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # Configuration
-IMAGE_NAME="egeback/ha-tn-reporter"
+IMAGE_NAME="ghcr.io/egeback/ha-tn-reporter"
 # Read version from the Python package to ensure a single source of truth
 VERSION=$(grep -oP "__version__ = '\K[^']+" src/reporter/__init__.py)
 LATEST_TAG="latest"
+PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 
 # Exit if version could not be determined
 if [ -z "$VERSION" ]; then
@@ -38,13 +39,13 @@ docker buildx inspect --bootstrap
 OUTPUT_ARGS=""
 if [ -n "$PUSH_IMAGE" ]; then
     OUTPUT_ARGS="--push"
-    echo "Building and pushing $IMAGE_NAME for amd64 and arm64 with tags: $VERSION, $LATEST_TAG"
+    echo "Building and pushing $IMAGE_NAME for $PLATFORMS with tags: $VERSION, $LATEST_TAG"
 else
-    echo "Building (no push) $IMAGE_NAME for amd64 and arm64 with tags: $VERSION, $LATEST_TAG"
+    echo "Building (no push) $IMAGE_NAME for $PLATFORMS with tags: $VERSION, $LATEST_TAG"
 fi
 
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --platform "$PLATFORMS" \
   -t "$IMAGE_NAME:$VERSION" \
   -t "$IMAGE_NAME:$LATEST_TAG" \
   $OUTPUT_ARGS .
