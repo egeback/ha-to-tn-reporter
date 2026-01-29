@@ -17,7 +17,7 @@ The project follows a modular, decoupled architecture to ensure high reliability
 ├── .env                  # Private secrets (ignored by git)
 ├── .env.example          # Template for configuration
 ├── .gitignore            # Git exclusion rules
-├── docker-compose.yml    # Container orchestration
+├── compose.yaml          # Container orchestration
 ├── Dockerfile            # Multi-arch build definition
 ├── pyproject.toml        # Build system and dependencies
 ├── README.md             # Documentation
@@ -26,16 +26,21 @@ The project follows a modular, decoupled architecture to ensure high reliability
 ├── src/
 │   └── reporter/
 │       ├── __init__.py
+│       ├── config.py     # Configuration parsing logic
 │       ├── main.py       # Orchestrator & CLI entry point
 │       ├── mqtt.py       # MQTT connection, Discovery & LWT logic
 │       ├── state.py      # Persistence & Global Metric management
+│       ├── tn_client.py  # Temperatur.nu API client
 │       ├── web.py        # Health Check HTTP server
 │       └── model/
 │           ├── __init__.py
 │           └── sensor.py # Core logic for HA fetching & aggregation
 └── tests/                # Test suite
-    ├── test_sensor.py
-    └── test_api.py
+    ├── test_api.py
+    ├── test_config.py
+    ├── test_main.py
+    ├── test_mqtt.py
+    └── test_sensor.py
 ---
 
 ## 🚀 Getting Started
