@@ -2,7 +2,7 @@
 python-dotenv==1.0.1
 httpx==0.27.0
 aiohttp==3.9.5
-gmqtt==0.6.12
+aiomqtt==2.1.0
 
 # Testing Dependencies
 pytest==8.2.0
