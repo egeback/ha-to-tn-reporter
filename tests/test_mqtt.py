@@ -34,7 +34,7 @@ async def test_mqtt_discovery_payloads():
         items.append(await mgr.queue.get())
         
     def get_payload(suffix):
-        for prio, item in items:
+        for prio, _seq, item in items:
             topic, payload_str, qos, retain = item
             payload = json.loads(payload_str)
             if payload["unique_id"].endswith(suffix):
