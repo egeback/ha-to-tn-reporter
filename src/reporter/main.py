@@ -44,7 +44,8 @@ async def main_loop():
             args.mapping, args.ha_url, args.ha_token,
             mode=args.mode, max_age=args.max_age,
             temp_min=args.temp_min, temp_max=args.temp_max,
-            outlier_threshold=args.outlier_threshold,
+            outlier_threshold_high=args.outlier_threshold_high,
+            outlier_threshold_low=args.outlier_threshold_low,
             outlier_min_group=args.outlier_min_group,
         )
     except Exception as e:

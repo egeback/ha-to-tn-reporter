@@ -52,9 +52,12 @@ def parse_args(args_list=None):
                         help="Hard sanity floor in °C; readings below this are dropped (default: -50)")
     parser.add_argument("--temp-max", type=float, default=float(os.getenv("REPORTER_TEMP_MAX", 60.0)),
                         help="Hard sanity ceiling in °C; readings above this are dropped (default: 60)")
-    parser.add_argument("--outlier-threshold", type=float,
-                        default=float(os.getenv("REPORTER_OUTLIER_THRESHOLD", 15.0)),
-                        help="Max °C deviation from group median before a sensor is dropped (default: 15)")
+    parser.add_argument("--outlier-threshold-high", type=float,
+                        default=float(os.getenv("REPORTER_OUTLIER_THRESHOLD_HIGH", 15.0)),
+                        help="Drop sensors more than this many °C ABOVE the group median (default: 15)")
+    parser.add_argument("--outlier-threshold-low", type=float,
+                        default=float(os.getenv("REPORTER_OUTLIER_THRESHOLD_LOW", 25.0)),
+                        help="Drop sensors more than this many °C BELOW the group median (default: 25; lenient on purpose so shade sensors survive a mostly-sunny group)")
     parser.add_argument("--outlier-min-group", type=int,
                         default=int(os.getenv("REPORTER_OUTLIER_MIN_GROUP", 3)),
                         help="Skip outlier rejection when fewer than this many valid sensors remain (default: 3)")
@@ -64,7 +67,9 @@ def parse_args(args_list=None):
 def parse_sensors(mapping_config: str, ha_url: str, ha_token: str,
                   mode: str = "min", max_age: int = 1800,
                   temp_min: float = -50.0, temp_max: float = 60.0,
-                  outlier_threshold: float = 15.0, outlier_min_group: int = 3) -> list[TempSensor]:
+                  outlier_threshold_high: float = 15.0,
+                  outlier_threshold_low: float = 25.0,
+                  outlier_min_group: int = 3) -> list[TempSensor]:
     """
     Parses the sensor mapping string into a list of TempSensor objects.
     Includes defensive logic to fix common configuration errors.
@@ -85,7 +90,8 @@ def parse_sensors(mapping_config: str, ha_url: str, ha_token: str,
             ha_ids, tn_id, ha_url, ha_token,
             mode=mode, max_age=max_age,
             temp_min=temp_min, temp_max=temp_max,
-            outlier_threshold=outlier_threshold,
+            outlier_threshold_high=outlier_threshold_high,
+            outlier_threshold_low=outlier_threshold_low,
             outlier_min_group=outlier_min_group,
         ))
 

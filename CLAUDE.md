@@ -38,7 +38,24 @@ Configured via env vars (`REPORTER_*`). Key choices in production:
 - `REPORTER_MAX_AGE=1800` — sensors stale after 30 min get dropped.
 - `REPORTER_CALCULATION_MODE=min` — picks the coldest sensor in the group.
   Rationale: "shade temperature guarantee" — among multiple outdoor sensors,
-  the coldest is most likely in shade. Brittle to outliers, but intentional.
+  the coldest is most likely in shade (sun-exposed sensors read too warm).
+  **Do not switch this to median/mean to "stabilize" the output** — that
+  would defeat the whole point. Stability comes from the filters below, not
+  from changing the aggregation.
+- `REPORTER_OUTLIER_THRESHOLD_HIGH=15` and `REPORTER_OUTLIER_THRESHOLD_LOW=25`
+  (°C from group median) + `REPORTER_TEMP_MIN/MAX` (sanity range, default
+  −50…+60 °C). Added in 1.4.9–1.4.10 so a single stuck/broken sensor can no
+  longer dominate `min`. Both filters run BEFORE aggregation, so the
+  shade-temperature guarantee is preserved. Skipped when fewer than 3 valid
+  sensors remain (median isn't robust at small N).
+- **The outlier thresholds are intentionally asymmetric.** Upper is tight
+  (15 °C) to catch sensors stuck at warm values; lower is generous (25 °C)
+  so that a real shade sensor — which reads well below a mostly-sunny
+  group — survives the filter. If both thresholds were symmetric 15 °C, a
+  scenario like "5 sensors in sun at 35 °C, 1 in shade at 18 °C" would drop
+  the shade sensor (17 °C below median) and `min()` would then report the
+  sun reading — defeating the whole point of min-mode. Don't symmetrize
+  these without thinking through that case.
 - `LOG_LEVEL=ERROR` in production. Set to `INFO` temporarily to see the new
   per-cycle `Station 'X': reporting Y°C (mode=min, winner=...)` line that
   exposes which underlying HA sensor dominates over the day.
