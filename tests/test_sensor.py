@@ -222,3 +222,99 @@ async def test_api_error_resilience():
     assert result == 15.0
     assert stats["active_sensors"] == 1
     assert stats["total_sensors"] == 2
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_sanity_range_drops_absurd_values():
+    """Sensors reporting values outside [temp_min, temp_max] must be dropped."""
+    ha_url = "http://ha.local"
+    sensor = TempSensor(
+        "s_ok|s_low|s_high", "tn_id", ha_url, "token",
+        mode="min", temp_min=-50.0, temp_max=60.0,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    respx.get(f"{ha_url}/api/states/s_ok").mock(return_value=Response(200, json={"state": "15.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s_low").mock(return_value=Response(200, json={"state": "-99.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s_high").mock(return_value=Response(200, json={"state": "120.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == 15.0
+    assert stats["active_sensors"] == 1
+    assert stats["rejected_sanity"] == 2
+    assert stats["rejected_outlier"] == 0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_outlier_rejection_drops_broken_sensor_in_group():
+    """The sensor 2 -25.5°C scenario: one sensor far below the rest is dropped."""
+    ha_url = "http://ha.local"
+    sensor = TempSensor(
+        "s1|s2|s3|s4", "tn_id", ha_url, "token",
+        mode="min", outlier_threshold=15.0, outlier_min_group=3,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Three sensors agree around 15-17°C; one reports -25.5°C and should be dropped.
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "15.5", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "-25.5", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s3").mock(return_value=Response(200, json={"state": "16.8", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s4").mock(return_value=Response(200, json={"state": "17.5", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    # min of the survivors {15.5, 16.8, 17.5} is 15.5; -25.5 must be excluded.
+    assert result == 15.5
+    assert stats["active_sensors"] == 3
+    assert stats["rejected_outlier"] == 1
+    assert "s2" not in stats["sensor_map"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_outlier_check_skipped_for_small_group():
+    """With <3 sensors the median is not robust — both values must be kept."""
+    ha_url = "http://ha.local"
+    sensor = TempSensor(
+        "s1|s2", "tn_id", ha_url, "token",
+        mode="min", outlier_threshold=15.0, outlier_min_group=3,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "15.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "-10.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == -10.0
+    assert stats["active_sensors"] == 2
+    assert stats["rejected_outlier"] == 0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_normal_spread_within_threshold_is_kept():
+    """Realistic sun/shade spread (~8°C) must NOT trip the outlier filter."""
+    ha_url = "http://ha.local"
+    sensor = TempSensor(
+        "s1|s2|s3", "tn_id", ha_url, "token",
+        mode="min", outlier_threshold=15.0, outlier_min_group=3,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    respx.get(f"{ha_url}/api/states/s1").mock(return_value=Response(200, json={"state": "18.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s2").mock(return_value=Response(200, json={"state": "22.0", "last_updated": now}))
+    respx.get(f"{ha_url}/api/states/s3").mock(return_value=Response(200, json={"state": "26.0", "last_updated": now}))
+
+    async with AsyncClient() as client:
+        result, stats = await sensor.fetch_data(client)
+
+    assert result == 18.0
+    assert stats["active_sensors"] == 3
+    assert stats["rejected_outlier"] == 0

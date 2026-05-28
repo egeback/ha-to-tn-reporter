@@ -40,7 +40,13 @@ async def main_loop():
     # Parse Sensors
     sensors = []
     try:
-        sensors = parse_sensors(args.mapping, args.ha_url, args.ha_token)
+        sensors = parse_sensors(
+            args.mapping, args.ha_url, args.ha_token,
+            mode=args.mode, max_age=args.max_age,
+            temp_min=args.temp_min, temp_max=args.temp_max,
+            outlier_threshold=args.outlier_threshold,
+            outlier_min_group=args.outlier_min_group,
+        )
     except Exception as e:
         logger.critical(f"Fatal error parsing sensor mapping: {e}")
         sys.exit(1)

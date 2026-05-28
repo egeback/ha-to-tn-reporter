@@ -36,14 +36,29 @@ class TempSensor:
     """
     Represents a group of one or more Home Assistant sensors mapped to one Temperatur.nu ID.
     Handles data fetching, age-validation (stale data), and mathematical aggregation.
+
+    Two layers of bad-value protection:
+      * Sanity range: any value outside [temp_min, temp_max] is dropped — catches
+        battery-dead / disconnected sensors that report absurd numbers.
+      * Outlier rejection: when at least `outlier_min_group` valid values are left,
+        any value more than `outlier_threshold` °C from the group median is dropped.
+        Catches the "I'm reporting but lying" case (e.g. one sensor stuck at -25°C
+        in a group where everyone else reads 15°C). Skipped for small groups where
+        the median isn't robust.
     """
-    def __init__(self, ha_ids, tn_id, ha_url, ha_token, mode="min", max_age=1800):
+    def __init__(self, ha_ids, tn_id, ha_url, ha_token, mode="min", max_age=1800,
+                 temp_min=-50.0, temp_max=60.0,
+                 outlier_threshold=15.0, outlier_min_group=3):
         self.ha_ids = ha_ids.split('|') # Supports pipe-separated IDs: "sensor.a|sensor.b"
         self.tn_id = tn_id
         self.ha_url = ha_url
         self.ha_token = ha_token
         self.mode = mode
         self.max_age = max_age # Default 30 minutes (1800 seconds)
+        self.temp_min = temp_min
+        self.temp_max = temp_max
+        self.outlier_threshold = outlier_threshold
+        self.outlier_min_group = outlier_min_group
 
     def _calculate_aggregation(self, values):
         """
@@ -68,6 +83,7 @@ class TempSensor:
         """
         valid_values = []
         stale_count = 0
+        rejected_sanity = 0
         sensor_map = {}
         last_updated_map = {}
         headers = {"Authorization": f"Bearer {self.ha_token}"}
@@ -112,18 +128,56 @@ class TempSensor:
                     logger.warning(f"Sensor {eid} is stale (age: {int(age)}s > limit: {self.max_age}s).")
                     stale_count += 1
                     continue
-    
+
                 val = float(state)
+
+                # Sanity range — drop physically-impossible readings before they
+                # poison the aggregation. Battery-dead sensors often report 0 or
+                # a wildly negative number.
+                if val < self.temp_min or val > self.temp_max:
+                    logger.warning(
+                        f"Sensor {eid} dropped: value {val}°C outside sanity range "
+                        f"[{self.temp_min}, {self.temp_max}]°C."
+                    )
+                    rejected_sanity += 1
+                    continue
+
                 valid_values.append(val)
                 sensor_map[eid] = val
                 last_updated_map[eid] = ts_str
-    
+
             except Exception as e:
                 logger.error(f"Failed to fetch data for {eid}: {e}")
+
+        # Outlier rejection — only meaningful with enough sensors for the median
+        # to be robust. With <3 valid readings we have no good reference, so we
+        # trust them and rely on sanity range alone.
+        rejected_outlier = 0
+        if len(valid_values) >= self.outlier_min_group:
+            group_median = statistics.median(valid_values)
+            survivors = []
+            survivor_map = {}
+            survivor_last_updated = {}
+            for eid, v in sensor_map.items():
+                if abs(v - group_median) > self.outlier_threshold:
+                    logger.warning(
+                        f"Sensor {eid} dropped: value {v}°C is {abs(v - group_median):.1f}°C "
+                        f"from group median ({group_median}°C, threshold {self.outlier_threshold}°C)."
+                    )
+                    rejected_outlier += 1
+                    continue
+                survivors.append(v)
+                survivor_map[eid] = v
+                survivor_last_updated[eid] = last_updated_map[eid]
+            valid_values = survivors
+            sensor_map = survivor_map
+            last_updated_map = survivor_last_updated
 
         # Construct statistics for monitoring/MQTT
         stats = {
             "stale_sensors": stale_count,
+            "rejected_sanity": rejected_sanity,
+            "rejected_outlier": rejected_outlier,
             "active_sensors": len(valid_values),
             "total_sensors": len(self.ha_ids),
             "raw_values": valid_values,

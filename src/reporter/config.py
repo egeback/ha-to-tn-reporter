@@ -41,10 +41,30 @@ def parse_args(args_list=None):
                         help="MQTT password")
     parser.add_argument("--mqtt-topic", default=os.getenv("REPORTER_MQTT_TOPIC", "tn_reporter"),
                         help="MQTT base topic (default: tn_reporter)")
-    
+
+    # Aggregation & bad-value protection
+    parser.add_argument("--mode", default=os.getenv("REPORTER_CALCULATION_MODE", "min"),
+                        choices=["min", "median", "mean"],
+                        help="Aggregation mode across sensors in a group (default: min)")
+    parser.add_argument("--max-age", type=int, default=int(os.getenv("REPORTER_MAX_AGE", 1800)),
+                        help="Drop sensors whose last_updated is older than this many seconds (default: 1800)")
+    parser.add_argument("--temp-min", type=float, default=float(os.getenv("REPORTER_TEMP_MIN", -50.0)),
+                        help="Hard sanity floor in °C; readings below this are dropped (default: -50)")
+    parser.add_argument("--temp-max", type=float, default=float(os.getenv("REPORTER_TEMP_MAX", 60.0)),
+                        help="Hard sanity ceiling in °C; readings above this are dropped (default: 60)")
+    parser.add_argument("--outlier-threshold", type=float,
+                        default=float(os.getenv("REPORTER_OUTLIER_THRESHOLD", 15.0)),
+                        help="Max °C deviation from group median before a sensor is dropped (default: 15)")
+    parser.add_argument("--outlier-min-group", type=int,
+                        default=int(os.getenv("REPORTER_OUTLIER_MIN_GROUP", 3)),
+                        help="Skip outlier rejection when fewer than this many valid sensors remain (default: 3)")
+
     return parser.parse_args(args_list)
 
-def parse_sensors(mapping_config: str, ha_url: str, ha_token: str) -> list[TempSensor]:
+def parse_sensors(mapping_config: str, ha_url: str, ha_token: str,
+                  mode: str = "min", max_age: int = 1800,
+                  temp_min: float = -50.0, temp_max: float = 60.0,
+                  outlier_threshold: float = 15.0, outlier_min_group: int = 3) -> list[TempSensor]:
     """
     Parses the sensor mapping string into a list of TempSensor objects.
     Includes defensive logic to fix common configuration errors.
@@ -61,6 +81,12 @@ def parse_sensors(mapping_config: str, ha_url: str, ha_token: str) -> list[TempS
     for item in mapping_config.split(','):
         if '=' not in item: continue
         tn_id, ha_ids = item.split('=', 1)
-        sensors.append(TempSensor(ha_ids, tn_id, ha_url, ha_token))
-    
+        sensors.append(TempSensor(
+            ha_ids, tn_id, ha_url, ha_token,
+            mode=mode, max_age=max_age,
+            temp_min=temp_min, temp_max=temp_max,
+            outlier_threshold=outlier_threshold,
+            outlier_min_group=outlier_min_group,
+        ))
+
     return sensors
