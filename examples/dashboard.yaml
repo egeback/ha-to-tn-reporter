@@ -1,14 +1,17 @@
 # Lovelace dashboard for ha-to-tn-reporter.
 #
-# Entity names below assume station id = "sandbyang" and the underlying HA
-# sensors listed in REPORTER_SENSOR_MAPPING. Adjust if your station/sensors
-# differ. All `sensor.sandbyang_*` and `sensor.sandbyang_reporter_*` entities
-# are created automatically via MQTT discovery once the reporter is running
-# against a configured broker.
+# Entity IDs below match what MQTT discovery actually creates when station_id
+# = "sandbyang" — HA prepends the device name ("Sandbyang Reporter") to each
+# entity name, so the temperature ends up as
+# `sensor.sandbyang_reporter_sandbyang_temperature` rather than the shorter
+# `sensor.sandbyang_temperature` you might expect. The status entity has a
+# different prefix because it was created when the device was previously
+# named "HA to TN Reporter" — HA preserves the original entity_id on rename.
+#
+# Adjust the names for your own station and underlying HA sensors.
 
 # ---------------------------------------------------------------------------
 # Variant 1: Built-in cards only (no HACS dependency).
-# Paste as a new view, or wrap in a `vertical-stack` for a single column.
 # ---------------------------------------------------------------------------
 type: vertical-stack
 cards:
@@ -16,9 +19,9 @@ cards:
     title: Sandbyang → temperatur.nu
     columns: 2
     entities:
-      - entity: sensor.sandbyang_temperature
+      - entity: sensor.sandbyang_reporter_sandbyang_temperature
         name: Rapporterat
-      - entity: sensor.sandbyang_winning_sensor
+      - entity: sensor.sandbyang_reporter_sandbyang_winning_sensor
         name: Vinnande sensor
 
   - type: history-graph
@@ -26,7 +29,7 @@ cards:
     hours_to_show: 24
     refresh_interval: 60
     entities:
-      - entity: sensor.sandbyang_temperature
+      - entity: sensor.sandbyang_reporter_sandbyang_temperature
         name: Rapporterat (TN)
       - entity: sensor.sbht_003c_d6d2_temperature
       - entity: sensor.sbht_003c_e566_temperature
@@ -50,17 +53,17 @@ cards:
   - type: entities
     title: Reporter-status
     entities:
-      - entity: sensor.sandbyang_reporter_status
+      - entity: sensor.ha_to_tn_reporter_reporter_status
         name: Status
-      - entity: sensor.sandbyang_reporter_last_run
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_last_run
         name: Senaste cykel
-      - entity: sensor.sandbyang_reporter_last_successful_report
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report
         name: Senaste lyckade rapport
-      - entity: sensor.sandbyang_reporter_session_success
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_session_success
         name: Lyckade (session)
-      - entity: sensor.sandbyang_reporter_session_errors
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_session_errors
         name: Fel (session)
-      - entity: sensor.sandbyang_reporter_uptime
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_uptime
         name: Uptime
 
 # ---------------------------------------------------------------------------
@@ -82,7 +85,7 @@ cards:
 #       title:
 #         text: °C
 # series:
-#   - entity: sensor.sandbyang_temperature
+#   - entity: sensor.sandbyang_reporter_sandbyang_temperature
 #     name: Rapporterat (TN)
 #     stroke_width: 3
 #     color: '#ff7800'

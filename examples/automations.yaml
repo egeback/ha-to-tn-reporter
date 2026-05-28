@@ -48,7 +48,7 @@
   trigger:
     - platform: template
       value_template: >-
-        {% set ts = states('sensor.sandbyang_reporter_last_successful_report') %}
+        {% set ts = states('sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report') %}
         {% if ts in ['unknown', 'unavailable', 'none', None] %}
           false
         {% else %}
@@ -62,9 +62,9 @@
         title: "TN-reporter rapporterar inte"
         message: >-
           Ingen lyckad rapport till temperatur.nu på över 15 minuter.
-          Senaste lyckade: {{ states('sensor.sandbyang_reporter_last_successful_report') }}.
-          Service-status: {{ states('sensor.sandbyang_reporter_status') }}.
-          Session-fel: {{ states('sensor.sandbyang_reporter_session_errors') }}.
+          Senaste lyckade: {{ states('sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report') }}.
+          Service-status: {{ states('sensor.ha_to_tn_reporter_reporter_status') }}.
+          Session-fel: {{ states('sensor.sandbyang_reporter_sandbyang_reporter_session_errors') }}.
         notification_id: tn_reporter_stale
 
 # ---------------------------------------------------------------------------
@@ -81,11 +81,11 @@
       topic: tn_reporter/bridge/state
       payload: online
     - platform: state
-      entity_id: sensor.sandbyang_reporter_last_successful_report
+      entity_id: sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report
   condition:
     - condition: template
       value_template: >-
-        {% set ts = states('sensor.sandbyang_reporter_last_successful_report') %}
+        {% set ts = states('sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report') %}
         {% if ts in ['unknown', 'unavailable', 'none', None] %}
           false
         {% else %}
