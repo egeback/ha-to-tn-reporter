@@ -1,0 +1,108 @@
+# Home Assistant automations that alert when the temperatur.nu reporter
+# stops working. Drop these into automations.yaml (or paste via Settings →
+# Automations → Edit YAML). Adjust the `notify.*` action to your preferred
+# channel (persistent_notification is shown as the no-setup default).
+#
+# Signals we react to:
+#   1. The MQTT bridge LWT goes "offline" — the reporter process or the
+#      MQTT broker is unreachable.
+#   2. No successful TN report in > 10 minutes — process is up but
+#      rapporteringen sitter fast (TN-fel, HA-fel, e.d.).
+#
+# Both fire the same notification action; consolidate or split as you wish.
+
+# ---------------------------------------------------------------------------
+# 1. Service offline (LWT detected an unclean disconnect)
+# ---------------------------------------------------------------------------
+- id: tn_reporter_service_offline
+  alias: "TN-reporter: service offline"
+  description: >
+    Larma när MQTT-bridgen för temperatur.nu-reportern blir 'offline'
+    (LWT) — containern kraschad, omstartad, eller MQTT-broker nere.
+  mode: single
+  trigger:
+    - platform: mqtt
+      topic: tn_reporter/bridge/state
+      payload: offline
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "TN-reporter offline"
+        message: >-
+          Rapporteringstjänsten till temperatur.nu är inte längre nåbar
+          via MQTT ({{ now().strftime('%Y-%m-%d %H:%M') }}).
+        notification_id: tn_reporter_offline
+
+# ---------------------------------------------------------------------------
+# 2. Rapporteringen sitter fast (ingen lyckad rapport på 15 min)
+# ---------------------------------------------------------------------------
+# Reportern går 60s-cykler, så 15 min utan en lyckad rapport = ~15 misslyckade
+# cykler i rad. Trigger:en använder `for:` så vi inte tjuter på ett enstaka
+# blippade fel.
+- id: tn_reporter_no_recent_report
+  alias: "TN-reporter: ingen lyckad rapport på 15 min"
+  description: >
+    Larma om sensor.sandbyang_reporter_last_successful_report inte har
+    uppdaterats på 15 minuter. Triggar både vid TN-fel och HA-fel.
+  mode: single
+  trigger:
+    - platform: template
+      value_template: >-
+        {% set ts = states('sensor.sandbyang_reporter_last_successful_report') %}
+        {% if ts in ['unknown', 'unavailable', 'none', None] %}
+          false
+        {% else %}
+          {{ (now() - as_datetime(ts)).total_seconds() > 900 }}
+        {% endif %}
+      for:
+        minutes: 1
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "TN-reporter rapporterar inte"
+        message: >-
+          Ingen lyckad rapport till temperatur.nu på över 15 minuter.
+          Senaste lyckade: {{ states('sensor.sandbyang_reporter_last_successful_report') }}.
+          Service-status: {{ states('sensor.sandbyang_reporter_status') }}.
+          Session-fel: {{ states('sensor.sandbyang_reporter_session_errors') }}.
+        notification_id: tn_reporter_stale
+
+# ---------------------------------------------------------------------------
+# (Optional) Återställ notifieringen när det rullar igen
+# ---------------------------------------------------------------------------
+- id: tn_reporter_recovered
+  alias: "TN-reporter: återställd"
+  description: >
+    Rensa larm-notiserna när bridge är online igen och en lyckad rapport
+    har skett under senaste 5 min.
+  mode: single
+  trigger:
+    - platform: mqtt
+      topic: tn_reporter/bridge/state
+      payload: online
+    - platform: state
+      entity_id: sensor.sandbyang_reporter_last_successful_report
+  condition:
+    - condition: template
+      value_template: >-
+        {% set ts = states('sensor.sandbyang_reporter_last_successful_report') %}
+        {% if ts in ['unknown', 'unavailable', 'none', None] %}
+          false
+        {% else %}
+          {{ (now() - as_datetime(ts)).total_seconds() < 300 }}
+        {% endif %}
+  action:
+    - service: persistent_notification.dismiss
+      data:
+        notification_id: tn_reporter_offline
+    - service: persistent_notification.dismiss
+      data:
+        notification_id: tn_reporter_stale
+
+# ---------------------------------------------------------------------------
+# Tips: ersätt `persistent_notification.create` med t.ex.
+#   service: notify.mobile_app_<ditt_telefonid>
+# eller
+#   service: notify.telegram_bot
+# för push/Telegram. Behåll `notification_id:` så att samma larm inte
+# triggar dubbla notiser.
