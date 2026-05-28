@@ -5,6 +5,33 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("reporter.sensor")
 
+# Retry transient HA errors (502/503/504 and network/timeout). 404/4xx are
+# treated as permanent (entity missing or unauthorized) and not retried.
+_HA_RETRY_ATTEMPTS = 2
+_HA_RETRY_BACKOFF = 3.0  # seconds between attempts
+
+
+async def _fetch_one(client, url, headers):
+    """GET one HA entity, retrying once on 5xx or network/timeout errors."""
+    last_exc = None
+    for attempt in range(1, _HA_RETRY_ATTEMPTS + 1):
+        try:
+            resp = await client.get(url, headers=headers, timeout=5.0)
+            if 500 <= resp.status_code < 600 and attempt < _HA_RETRY_ATTEMPTS:
+                logger.debug(f"HA {resp.status_code} for {url} (attempt {attempt}); retrying.")
+                await asyncio.sleep(_HA_RETRY_BACKOFF)
+                continue
+            return resp
+        except Exception as e:
+            last_exc = e
+            if attempt < _HA_RETRY_ATTEMPTS:
+                logger.debug(f"HA fetch error for {url} (attempt {attempt}): {type(e).__name__}; retrying.")
+                await asyncio.sleep(_HA_RETRY_BACKOFF)
+                continue
+            return e
+    return last_exc
+
+
 class TempSensor:
     """
     Represents a group of one or more Home Assistant sensors mapped to one Temperatur.nu ID.
@@ -47,18 +74,19 @@ class TempSensor:
 
         # Create concurrent tasks for all sensors in the group
         tasks = [
-            client.get(f"{self.ha_url}/api/states/{eid}", headers=headers, timeout=5.0)
+            _fetch_one(client, f"{self.ha_url}/api/states/{eid}", headers)
             for eid in self.ha_ids
         ]
-        
+
         # Wait for all requests to complete (or fail)
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for i, result in enumerate(results):
             eid = self.ha_ids[i]
-            
+
             if isinstance(result, Exception):
-                logger.error(f"Failed to fetch data for {eid}: {result}")
+                desc = f"{type(result).__name__}: {result}" if str(result) else type(result).__name__
+                logger.error(f"Failed to fetch data for {eid}: {desc}")
                 continue
             
             if result.status_code != 200:

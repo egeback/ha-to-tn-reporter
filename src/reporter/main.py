@@ -78,9 +78,17 @@ async def main_loop():
                 try:
                     val, stats = await sensor.fetch_data(client)
                     health_status[sensor.tn_id] = stats
-                    
+
                     if val is not None:
                         health_status[sensor.tn_id]["last_reported_value"] = val
+                        # Single per-cycle line that tells us which underlying HA sensor "won"
+                        # the aggregation. Lets us diagnose drift across the day from logs alone.
+                        logger.info(
+                            f"Station '{sensor.tn_id}': reporting {val:.1f}°C "
+                            f"(mode={sensor.mode}, winner={stats.get('winning_sensor', 'N/A')}, "
+                            f"active={stats.get('active_sensors', 0)}/{stats.get('total_sensors', 0)}, "
+                            f"stale={stats.get('stale_sensors', 0)})"
+                        )
                         if await report_to_tn(client, sensor, val, args.tn_hash):
                             update_success()
                         else:
@@ -88,7 +96,7 @@ async def main_loop():
                     else:
                         logger.warning(f"Station '{sensor.tn_id}' skipped: {stats.get('error', 'Unusable data')}")
                         update_error()
-                        
+
                 except Exception as e:
                     logger.exception(f"Unhandled error for sensor '{sensor.tn_id}': {e}")
                     update_error()
