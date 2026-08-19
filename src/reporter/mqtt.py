@@ -254,10 +254,19 @@ class MQTTManager:
                     # This 'item' is now a pre-structured dictionary from main.py
                     # We transform it into the final schema before publishing.
                     payload = self._build_mqtt_payload(item)
-                    
+
                     # Publish to the single unified topic
                     await client.publish(self.state_topic, json.dumps(payload), qos=1)
                     logger.info(f"MQTT: State published successfully. (Queue depth: {self.queue.qsize()})")
+
+                    # Re-assert "online" on every cycle. A stale session's delayed
+                    # LWT can clobber the retained availability flag back to
+                    # "offline" after this client has already reconnected (seen in
+                    # production: broker-side reconnects left bridge/state stuck
+                    # "offline" for hours while state kept publishing fine). This
+                    # makes that self-heal within one report interval instead of
+                    # requiring a manual restart.
+                    await client.publish(self.bridge_state_topic, "online", qos=1, retain=True)
                 
             except Exception as e:
                 logger.error(f"Error publishing queued MQTT item: {e}")
@@ -292,6 +301,14 @@ class MQTTManager:
                     port=self.port,
                     username=self.username,
                     password=self.password,
+                    # Stable identifier so the broker treats a reconnect as a
+                    # takeover of the previous session instead of a second,
+                    # independent one. Without this, aiomqtt assigns a random
+                    # ID per connection attempt, so a still-lingering old
+                    # session (e.g. during a broker restart) can deliver its
+                    # LWT "offline" *after* this new session already
+                    # announced "online", leaving availability stuck wrong.
+                    identifier=f"{self.base_topic}_bridge",
                     timeout=10.0,
                     will=will
                 ) as client:
