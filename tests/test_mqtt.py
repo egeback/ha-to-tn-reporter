@@ -34,7 +34,7 @@ async def test_mqtt_discovery_payloads():
         items.append(await mgr.queue.get())
         
     def get_payload(suffix):
-        for prio, item in items:
+        for prio, _seq, item in items:
             topic, payload_str, qos, retain = item
             payload = json.loads(payload_str)
             if payload["unique_id"].endswith(suffix):
@@ -105,15 +105,26 @@ async def test_mqtt_state_update_formatting():
         
     # Verify publish was called
     assert client.publish.called
-    call_args = client.publish.call_args
+    call_args = client.publish.call_args_list[0]
     payload_str = call_args[0][1]
     payload = json.loads(payload_str)
-    
+
     # Check that "stations" (plural) was reformatted to "station" (singular)
     assert "station" in payload
     assert payload["station"]["station_1"]["temperature"] == 21.5
     assert payload["station"]["station_1"]["sensor_name"] == "sensor.outside"
     assert payload["station"]["station_1"]["last_updated"] == "2023-01-01T12:00:00+00:00"
+
+    # Every state publish must re-assert availability, so the bridge can
+    # self-heal if a stale session's LWT clobbered it back to "offline"
+    # after this client reconnected.
+    online_calls = [
+        c for c in client.publish.call_args_list
+        if c[0][0] == mgr.bridge_state_topic
+    ]
+    assert len(online_calls) == 1
+    assert online_calls[0][0][1] == "online"
+    assert online_calls[0][1]["retain"] is True
 
 def test_build_mqtt_payload_structure():
     """

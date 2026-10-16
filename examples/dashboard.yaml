@@ -1,0 +1,109 @@
+# Lovelace dashboard for ha-to-tn-reporter.
+#
+# Entity IDs below match what MQTT discovery actually creates when station_id
+# = "sandbyang" — HA prepends the device name ("Sandbyang Reporter") to each
+# entity name, so the temperature ends up as
+# `sensor.sandbyang_reporter_sandbyang_temperature` rather than the shorter
+# `sensor.sandbyang_temperature` you might expect. The status entity has a
+# different prefix because it was created when the device was previously
+# named "HA to TN Reporter" — HA preserves the original entity_id on rename.
+#
+# Adjust the names for your own station and underlying HA sensors.
+
+# ---------------------------------------------------------------------------
+# Variant 1: Built-in cards only (no HACS dependency).
+# ---------------------------------------------------------------------------
+type: vertical-stack
+cards:
+  - type: glance
+    title: Sandbyang → temperatur.nu
+    columns: 2
+    entities:
+      - entity: sensor.sandbyang_reporter_sandbyang_temperature
+        name: Rapporterat
+      - entity: sensor.sandbyang_reporter_sandbyang_winning_sensor
+        name: Vinnande sensor
+
+  - type: history-graph
+    title: Senaste dygnet — rapporterat vs alla HA-sensorer
+    hours_to_show: 24
+    refresh_interval: 60
+    entities:
+      - entity: sensor.sandbyang_reporter_sandbyang_temperature
+        name: Rapporterat (TN)
+      - entity: sensor.sbht_003c_d6d2_temperature
+      - entity: sensor.sbht_003c_e566_temperature
+      - entity: sensor.utomhus_hue_sensor_temperature
+      - entity: sensor.utomhus_sensor_1_temperature
+      - entity: sensor.utomhus_sensor_2_temperature
+      - entity: sensor.utomhus_sensor_3_temperature
+
+  - type: glance
+    title: Aktuella värden per sensor
+    columns: 3
+    show_state: true
+    entities:
+      - sensor.sbht_003c_d6d2_temperature
+      - sensor.sbht_003c_e566_temperature
+      - sensor.utomhus_hue_sensor_temperature
+      - sensor.utomhus_sensor_1_temperature
+      - sensor.utomhus_sensor_2_temperature
+      - sensor.utomhus_sensor_3_temperature
+
+  - type: entities
+    title: Reporter-status
+    entities:
+      - entity: sensor.ha_to_tn_reporter_reporter_status
+        name: Status
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_last_run
+        name: Senaste cykel
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_last_successful_report
+        name: Senaste lyckade rapport
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_session_success
+        name: Lyckade (session)
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_session_errors
+        name: Fel (session)
+      - entity: sensor.sandbyang_reporter_sandbyang_reporter_uptime
+        name: Uptime
+
+# ---------------------------------------------------------------------------
+# Variant 2: ApexCharts (HACS frontend card). Prettier history with the
+# reported value drawn as a bold line and all six HA sensors as faded lines.
+# Install via HACS → Frontend → "apexcharts-card".
+# ---------------------------------------------------------------------------
+# type: custom:apexcharts-card
+# header:
+#   title: Sandbyang — senaste dygnet
+#   show: true
+# graph_span: 24h
+# update_interval: 1min
+# span:
+#   end: minute
+# yaxis:
+#   - decimals: 1
+#     apex_config:
+#       title:
+#         text: °C
+# series:
+#   - entity: sensor.sandbyang_reporter_sandbyang_temperature
+#     name: Rapporterat (TN)
+#     stroke_width: 3
+#     color: '#ff7800'
+#   - entity: sensor.sbht_003c_d6d2_temperature
+#     name: SBHT d6d2
+#     opacity: 0.5
+#   - entity: sensor.sbht_003c_e566_temperature
+#     name: SBHT e566
+#     opacity: 0.5
+#   - entity: sensor.utomhus_hue_sensor_temperature
+#     name: Hue
+#     opacity: 0.5
+#   - entity: sensor.utomhus_sensor_1_temperature
+#     name: Sensor 1
+#     opacity: 0.5
+#   - entity: sensor.utomhus_sensor_2_temperature
+#     name: Sensor 2
+#     opacity: 0.5
+#   - entity: sensor.utomhus_sensor_3_temperature
+#     name: Sensor 3
+#     opacity: 0.5

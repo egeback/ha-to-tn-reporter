@@ -38,6 +38,7 @@ class MQTTManager:
         self.base_topic = base_topic
         
         # Internal state
+        self._seq = 0  # Tiebreaker for PriorityQueue to avoid comparing dicts
         self._connected = False
         self.state_topic = f"{self.base_topic}/state"
         self.bridge_state_topic = f"{self.base_topic}/bridge/state"
@@ -62,7 +63,8 @@ class MQTTManager:
         """
         # We use put_nowait because the main loop shouldn't block 
         # if the MQTT queue is busy.
-        self.queue.put_nowait((self._PRIO_STATE, data))
+        self._seq += 1
+        self.queue.put_nowait((self._PRIO_STATE, self._seq, data))
         logger.debug(f"State update added to queue. Current queue size: {self.queue.qsize()}")
 
     async def _publish_discovery(self):
@@ -111,7 +113,8 @@ class MQTTManager:
                 **availability_config
             }
             pub_tuple = (temp_topic, json.dumps(temp_payload), 1, True)
-            self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
+            self._seq += 1
+            self.queue.put_nowait((self._PRIO_DISCOVERY, self._seq, pub_tuple))
 
             # Create a sensor for the winning sensor
             winning_sensor_topic = f"homeassistant/sensor/{DISCOVERY_ROOT}/{station_id}_winning_sensor/config"
@@ -125,7 +128,8 @@ class MQTTManager:
                 **availability_config
             }
             pub_tuple = (winning_sensor_topic, json.dumps(winning_sensor_payload), 1, True)
-            self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
+            self._seq += 1
+            self.queue.put_nowait((self._PRIO_DISCOVERY, self._seq, pub_tuple))
 
             # Create a sensor for the last updated timestamp
             last_updated_topic = f"homeassistant/sensor/{DISCOVERY_ROOT}/{station_id}_last_updated/config"
@@ -140,7 +144,8 @@ class MQTTManager:
                 **availability_config
             }
             pub_tuple = (last_updated_topic, json.dumps(last_updated_payload), 1, True)
-            self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
+            self._seq += 1
+            self.queue.put_nowait((self._PRIO_DISCOVERY, self._seq, pub_tuple))
 
 
 
@@ -163,7 +168,8 @@ class MQTTManager:
         }
         # Queue the publication command with high priority
         pub_tuple = (diag_topic, json.dumps(diag_payload), 1, True)
-        self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
+        self._seq += 1
+        self.queue.put_nowait((self._PRIO_DISCOVERY, self._seq, pub_tuple))
 
         # 3. Create individual diagnostic sensors for statistics
         stats_sensors = [
@@ -200,7 +206,8 @@ class MQTTManager:
                 payload["state_class"] = s['sc']
             
             pub_tuple = (topic, json.dumps(payload), 1, True)
-            self.queue.put_nowait((self._PRIO_DISCOVERY, pub_tuple))
+            self._seq += 1
+            self.queue.put_nowait((self._PRIO_DISCOVERY, self._seq, pub_tuple))
 
     def _build_mqtt_payload(self, data_source: dict) -> dict:
         """
@@ -232,8 +239,8 @@ class MQTTManager:
         """
         logger.info("MQTT Queue Consumer started.")
         while True:
-            # Wait for the next item. PriorityQueue gives us a (priority, item) tuple.
-            priority, item = await self.queue.get()
+            # Wait for the next item. PriorityQueue gives us a (priority, seq, item) tuple.
+            priority, _seq, item = await self.queue.get()
             
             try:
                 # TYPE 1: A direct publication tuple (topic, payload, qos, retain)
@@ -247,10 +254,19 @@ class MQTTManager:
                     # This 'item' is now a pre-structured dictionary from main.py
                     # We transform it into the final schema before publishing.
                     payload = self._build_mqtt_payload(item)
-                    
+
                     # Publish to the single unified topic
                     await client.publish(self.state_topic, json.dumps(payload), qos=1)
                     logger.info(f"MQTT: State published successfully. (Queue depth: {self.queue.qsize()})")
+
+                    # Re-assert "online" on every cycle. A stale session's delayed
+                    # LWT can clobber the retained availability flag back to
+                    # "offline" after this client has already reconnected (seen in
+                    # production: broker-side reconnects left bridge/state stuck
+                    # "offline" for hours while state kept publishing fine). This
+                    # makes that self-heal within one report interval instead of
+                    # requiring a manual restart.
+                    await client.publish(self.bridge_state_topic, "online", qos=1, retain=True)
                 
             except Exception as e:
                 logger.error(f"Error publishing queued MQTT item: {e}")
@@ -285,6 +301,14 @@ class MQTTManager:
                     port=self.port,
                     username=self.username,
                     password=self.password,
+                    # Stable identifier so the broker treats a reconnect as a
+                    # takeover of the previous session instead of a second,
+                    # independent one. Without this, aiomqtt assigns a random
+                    # ID per connection attempt, so a still-lingering old
+                    # session (e.g. during a broker restart) can deliver its
+                    # LWT "offline" *after* this new session already
+                    # announced "online", leaving availability stuck wrong.
+                    identifier=f"{self.base_topic}_bridge",
                     timeout=10.0,
                     will=will
                 ) as client:
