@@ -3,30 +3,27 @@
 Notes for future Claude sessions working in this repo. Concise on purpose —
 expand only when a fact is non-obvious or repeatedly useful.
 
-## Build & deploy
+## Build & release
 
-The app is shipped as a Docker image to Docker Hub. Production runs on host
-`carl` as the `temperature-reporter` container. Deployment is handled by
-**dockhand** (auto-deploys when the compose repo is pushed). See memory for
-the dockhand infra details since they span repos.
+The app is shipped as a multi-arch (amd64/arm64) Docker image,
+`egeback/ha-tn-reporter` on Docker Hub, built by GitHub Actions
+([release.yml](.github/workflows/release.yml)). Deployment happens elsewhere:
+the image tag is pinned in a separate compose repo that Renovate bumps.
 
 Release flow:
 
 1. Bump `__version__` in [src/reporter/__init__.py](src/reporter/__init__.py).
-2. Commit code changes (the `build.sh` runs the test suite before building).
-3. Push image: `PUSH_IMAGE=1 ./build.sh` (tags `:VERSION` + `:latest`,
-   multi-arch amd64/arm64). Requires `docker login docker.io` for the
-   `egeback` namespace.
-4. Update the pin in the separate `docker-infrastructure` gitea repo
-   (`carl/ha-to-tn-reporter/compose.yaml` → `image: ...:NEW_VERSION`).
-5. Push that repo to gitea — dockhand picks it up automatically.
-6. Verify on Carl: `ssh carl "docker inspect temperature-reporter --format '{{.Config.Image}}'"`.
+2. Merge to `main` ([test.yml](.github/workflows/test.yml) runs the tests).
+3. Publish a GitHub release tagged `vX.Y.Z` (same version). The workflow
+   checks the tag against `__version__`, runs the tests and pushes
+   `:X.Y.Z` + `:latest`. Needs the repo secret `DOCKERHUB_TOKEN`.
 
-Skip `PUSH_IMAGE` for a local-only test build. Skip tests with `SKIP_TESTS=1`.
+`./build.sh` still works for local builds (`SKIP_TESTS=1` skips tests,
+`PUSH_IMAGE=1` pushes, but releases should go through Actions).
 
 ## Tests
 
-`python -m pytest tests/` — 25 tests, all should pass. `build.sh` runs this
+`python -m pytest tests/` — 31 tests, all should pass. `build.sh` runs this
 automatically unless `SKIP_TESTS=1`. Tests use `respx` to mock HA and TN HTTP
 calls; no live network needed.
 
@@ -84,7 +81,7 @@ Configured via env vars (`REPORTER_*`). Key choices in production:
   publishes Home Assistant MQTT Discovery for all entities. Sequence number
   `_seq` is a tiebreaker so dicts never get compared.
 - [state.py](src/reporter/state.py) — global `health_status` dict, persisted
-  to `state.json` (mounted from host on Carl).
+  to `state.json` (mount `/app/data` to keep it).
 - [web.py](src/reporter/web.py) — `/health` endpoint for the container
   healthcheck.
 
@@ -105,10 +102,9 @@ Examples for HA visualization & alerts live in [examples/](examples/).
 
 ## Gotchas
 
-- The git remote in this repo is named `master`, not `origin`.
-  (`git remote -v` to confirm.)
-- The compose file is **not** in this repo — it lives in a separate gitea
-  repo. Updating image tags requires a push there, not here.
-- `LOG_LEVEL` is set via env on Carl, not in code. Don't change defaults in
-  the Dockerfile to chase a logging question — check Carl's env first
-  (`docker inspect temperature-reporter`).
+- The compose file is **not** in this repo (`compose.yaml` is gitignored;
+  see `compose.example.yaml`). Updating the running version means bumping
+  the pin in the deployment repo, not here.
+- `LOG_LEVEL` is set via env in the deployment, not in code. Don't change
+  defaults in the Dockerfile to chase a logging question — check the
+  container's env first.

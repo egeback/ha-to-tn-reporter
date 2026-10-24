@@ -1,3 +1,36 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "dependencyDashboardHeader": "Merging does not build an image. Publish a release (vX.Y.Z) and GitHub Actions pushes egeback/ha-tn-reporter to Docker Hub.",
+  "timezone": "Europe/Stockholm",
+  "schedule": ["* 0-8 1 * *"],
+  "labels": ["dependencies"],
+  "assignees": ["egeback"],
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Base images: pin the digest so that security patches to the same tag open a PR",
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true
+    },
+    {
+      "description": "Base images: digest/patch/pin in one PR; minor/major get their own",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest", "pin", "pinDigest", "patch"],
+      "groupName": "base images"
+    },
+    {
+      "description": "GitHub Actions only affect CI, never the image. The Python version in setup-python follows the Dockerfile's base image.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["!python"],
+      "groupName": "CI workflows"
+    },
+    {
+      "description": "App dependencies: non-major in one PR; they need a release to reach production",
+      "matchManagers": ["pep621", "pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "app dependencies"
+    }
+  ]
 }

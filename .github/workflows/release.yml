@@ -1,0 +1,73 @@
+name: Release
+
+# Publishing a GitHub release (tag vX.Y.Z) runs the tests and pushes
+# docker.io/egeback/ha-tn-reporter:X.Y.Z (+ :latest) for amd64 and arm64.
+# The tag must match __version__ in src/reporter/__init__.py.
+
+on:
+  release:
+    types: [published]
+
+env:
+  IMAGE: egeback/ha-tn-reporter
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag against __version__
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          code=$(sed -n "s/^__version__ = '\([^']*\)'/\1/p" src/reporter/__init__.py)
+          if [ "$version" != "$code" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match __version__ $code"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Test
+        run: |
+          pip install -r requirements.txt
+          pytest
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: egeback
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.version }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
