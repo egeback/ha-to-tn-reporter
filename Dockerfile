@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM python:3.12-slim as builder
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 as builder
 
 # Avoid generating .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -21,7 +21,7 @@ RUN pip install --upgrade pip && \
     pip install --prefix=/install --no-deps .
 
 # Stage 2: Final runtime stage
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
 
 WORKDIR /app
 
