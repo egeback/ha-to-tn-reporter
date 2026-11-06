@@ -6,6 +6,6 @@ aiomqtt==2.5.1
 
 # Testing Dependencies
 pytest==9.2.0
-pytest-asyncio==0.26.0
+pytest-asyncio==1.4.1.post1
 respx==0.23.1
 freezegun==1.5.5
