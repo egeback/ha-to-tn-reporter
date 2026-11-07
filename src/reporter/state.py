@@ -8,9 +8,17 @@ from . import __version__
 # Initialize logger for the state module to track persistence events
 logger = logging.getLogger("reporter.state")
 
-# Path where the stats are stored to survive container restarts/rebuilds
-# Ensure this file is mapped to a persistent volume in Docker
-STATE_FILE = "state.json"
+# Path where the stats are stored to survive container restarts/rebuilds.
+# Defaults to the /data volume the compose files mount; override with
+# REPORTER_STATE_FILE. Versions up to 1.4.11 wrote "state.json" to the working
+# directory (/app), which is lost when the container is recreated.
+DEFAULT_STATE_FILE = "/data/state.json"
+LEGACY_STATE_FILE = "state.json"
+
+
+def state_file():
+    """Path of the state file, read from the environment on every call."""
+    return os.getenv("REPORTER_STATE_FILE", DEFAULT_STATE_FILE)
 
 # --- The Global Health Status Object ---
 # This dictionary is the 'Single Source of Truth' for the application.
@@ -41,7 +49,9 @@ def save_state():
             "lifetime_success_count": health_status["lifetime_success_count"],
             "lifetime_error_count": health_status["lifetime_error_count"]
         }
-        with open(STATE_FILE, "w") as f:
+        path = state_file()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w") as f:
             json.dump(data_to_save, f)
         
         logger.debug(f"State persisted: {data_to_save}")
@@ -50,12 +60,17 @@ def save_state():
 
 def load_state():
     """
-    Attempts to read state.json from the project root.
-    If the file exists, it restores the lifetime_success_count to the global dictionary.
+    Attempts to read the state file (see state_file()).
+    If it exists, it restores the lifetime counters to the global dictionary.
+    Falls back once to a state.json left in the working directory by older versions.
     """
-    if os.path.exists(STATE_FILE):
+    path = state_file()
+    if not os.path.exists(path) and os.path.exists(LEGACY_STATE_FILE):
+        logger.info(f"Persistence: Migrating {LEGACY_STATE_FILE} to {path}.")
+        path = LEGACY_STATE_FILE
+    if os.path.exists(path):
         try:
-            with open(STATE_FILE, "r") as f:
+            with open(path, "r") as f:
                 saved_data = json.load(f)
                 # Update the global dict with the value from disk
                 health_status["lifetime_success_count"] = saved_data.get("lifetime_success_count", 0)

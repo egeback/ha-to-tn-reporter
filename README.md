@@ -65,6 +65,8 @@ REPORTER_SENSOR_MAPPING=sandbyang=sensor.outside_1|sensor.outside_2,garage=senso
 LOG_LEVEL=WARNING
 HEALTH_PORT=8080
 REPORTER_INTERVAL=180
+# Lifetime counters; keep /data on a volume (default /data/state.json)
+REPORTER_STATE_FILE=/data/state.json
 
 # MQTT Config
 REPORTER_MQTT_HOST=192.168.1.XX
