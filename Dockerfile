@@ -42,7 +42,7 @@ COPY README.md /app/
 
 # Create a directory for persistent state data
 # Ensure appuser owns the application directory to allow writing state.json
-RUN mkdir -p /app/data && chown -R appuser:appuser /app
+RUN mkdir -p /app/data /data && chown -R appuser:appuser /app /data
 
 # Build-time argument for versioning
 ARG APP_VERSION=unknown
@@ -54,6 +54,7 @@ ENV PYTHONPATH="/app/src" \
     LOG_LEVEL="WARNING" \
     HEALTH_PORT="8080" \
     REPORTER_INTERVAL="180" \
+    REPORTER_STATE_FILE="/data/state.json" \
     # --- Home Assistant ---
     REPORTER_HA_URL="" \
     REPORTER_HA_TOKEN="" \

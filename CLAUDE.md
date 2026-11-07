@@ -23,11 +23,16 @@ Release flow:
 
 ## Tests
 
-`python -m pytest tests/` — 31 tests, all should pass. `build.sh` runs this
+`python -m pytest tests/` — 35 tests, all should pass. `build.sh` runs this
 automatically unless `SKIP_TESTS=1`. Tests use `respx` to mock HA and TN HTTP
 calls; no live network needed.
 
 ## Production config (what the running container uses)
+
+State: lifetime counters live in `REPORTER_STATE_FILE` (default
+`/data/state.json`, the volume the compose files mount). Up to 1.4.11 the app
+wrote `state.json` to the working directory `/app`, so the counters were lost
+whenever the container was recreated; 1.4.12 reads such a legacy file once.
 
 Configured via env vars (`REPORTER_*`). Key choices in production:
 
